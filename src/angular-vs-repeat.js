@@ -215,13 +215,17 @@
                             $afterContent = angular.element('<' + childTagName + ' class="vs-repeat-after-content"></' + childTagName + '>'),
                             autoSize = !$attrs.vsRepeat,
                             sizesPropertyExists = !!$attrs.vsSize || !!$attrs.vsSizeProperty,
+                            calcHeights = typeof $attrs.vsAutoHeight !== 'undefined',
                             $scrollParent = $attrs.vsScrollParent ?
                                 $attrs.vsScrollParent === 'window' ? angular.element(window) :
                                 closestElement.call(repeatContainer, $attrs.vsScrollParent) : repeatContainer,
                             $$options = 'vsOptions' in $attrs ? $scope.$eval($attrs.vsOptions) : {},
                             clientSize = $$horizontal ? 'clientWidth' : 'clientHeight',
                             offsetSize = $$horizontal ? 'offsetWidth' : 'offsetHeight',
-                            scrollPos = $$horizontal ? 'scrollLeft' : 'scrollTop';
+                            scrollPos = $$horizontal ? 'scrollLeft' : 'scrollTop',
+                            childrenHeights = [],
+                            calculatedOffsetBefore = 0,
+                            avgElementSize = 0;
 
                         $scope.totalSize = 0;
                         if (!('vsSize' in $attrs) && 'vsSizeProperty' in $attrs) {
@@ -512,6 +516,53 @@
                                     originalLength
                                 );
                             }
+                            else if (calcHeights) {
+                                {
+
+                                    var getElementHeights = function() {
+                                        var children = repeatContainer.children();
+                                        var j = $scope.startIndex;
+                                        for (var i=0; i < children.length; i++) {
+                                            if (children[i].className !== 'vs-repeat-after-content' && children[i].className !== 'vs-repeat-before-content') {
+                                                childrenHeights[j] = children[i].offsetHeight;
+                                                j++
+                                            }
+                                        }
+                                    }();
+
+                                    avgElementSize = function() {
+                                        var overAllSize = 0;
+                                        var elementsCount = 0;
+                                        for (var i=0; i<childrenHeights.length; i++) {
+                                            if (childrenHeights[i]) {
+                                                overAllSize += childrenHeights[i];
+                                                elementsCount++;
+                                            }
+                                        }
+                                        return overAllSize / elementsCount;
+                                    }();
+
+                                    __startIndex = function() {
+                                        if ($scrollPosition === 0) return 0;
+                                        var newStartIndex = 0;
+                                        var overallHeight = 0;
+                                        for (var i=0; i<childrenHeights.length; i++) {
+                                            if (childrenHeights[i]) overallHeight += childrenHeights[i];
+                                            if (overallHeight > $scrollPosition) {
+                                                newStartIndex = i;
+                                                break;
+                                            }
+                                            if (i === childrenHeights.length - 1) newStartIndex = i;
+                                        }
+                                        return Math.max(Math.floor(newStartIndex - $scope.excess*0.5),0);
+                                    }();
+
+                                    __endIndex = Math.min(
+                                        Math.ceil(__startIndex + $scope.excess/2)+30, // FIXME
+                                        originalLength
+                                    );
+                                }
+                            }
                             else {
                                 __startIndex = Math.max(
                                     Math.floor(
@@ -533,6 +584,17 @@
 
                             $scope.startIndex = $$options.latch ? _minStartIndex : __startIndex;
                             $scope.endIndex = $$options.latch ? _maxEndIndex : __endIndex;
+
+                            if (calcHeights)
+                                calculatedOffsetBefore = function() {
+                                    var sum = 0;
+                                    for (var i=0; i<$scope.startIndex; i++) {
+                                        if (childrenHeights[i]) sum += childrenHeights[i];
+                                        else console.log('Cannot find height for element: '+i);
+
+                                    }
+                                    return sum;
+                                }();
 
                             // Move to the end of the collection if we are now past it
                             if (_maxEndIndex < $scope.startIndex)
@@ -590,9 +652,9 @@
                                     '(($index + startIndex) * elementSize + offsetBefore)';
 
                                 var parsed = $parse(offsetCalculationString);
-                                var o1 = parsed($scope, {$index: 0});
-                                var o2 = parsed($scope, {$index: $scope[collectionName].length});
                                 var total = $scope.totalSize;
+                                var o1 = calcHeights ? calculatedOffsetBefore : parsed($scope, {$index: 0});
+                                var o2 = calcHeights ? total : parsed($scope, {$index: $scope[collectionName].length});
 
                                 $beforeContent.css(getLayoutProp(), o1 + 'px');
                                 $afterContent.css(getLayoutProp(), (total - o2) + 'px');

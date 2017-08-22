@@ -11,7 +11,7 @@
   "main": "src/angular-vs-repeat.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kamilkp/angular-vs-repeat.git"
+    "url": "https://github.com/contentquo/angular-vs-repeat.git"
   },
   "devDependencies": {
     "grunt": "~0.4.5",
