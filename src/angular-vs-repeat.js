@@ -216,6 +216,7 @@
                             autoSize = !$attrs.vsRepeat,
                             sizesPropertyExists = !!$attrs.vsSize || !!$attrs.vsSizeProperty,
                             calcHeights = typeof $attrs.vsAutoHeight !== 'undefined',
+                            callDigestOnScroll = typeof $attrs.vsSkipDigest === 'undefined',
                             $scrollParent = $attrs.vsScrollParent ?
                                 $attrs.vsScrollParent === 'window' ? angular.element(window) :
                                 closestElement.call(repeatContainer, $attrs.vsScrollParent) : repeatContainer,
@@ -380,7 +381,7 @@
                         $scope.endIndex = 0;
 
                         function scrollHandler() {
-                            if (updateInnerCollection()) {
+                            if (updateInnerCollection() && callDigestOnScroll) {
                                 $scope.$digest();
                             }
                         }
